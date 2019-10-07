@@ -14,4 +14,6 @@ add_subdirectory(backgroundSubtraction)
 add_subdirectory(acceptance)
 add_subdirectory(signalBackground)
 add_subdirectory(photonPeak)
+add_subdirectory(crossSection)
+add_subdirectory(deeps)
 

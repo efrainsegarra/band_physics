@@ -24,9 +24,9 @@ int main( int argc, char ** argv){
 
 	TTree * inTree = (TTree *) inFile->Get("skim");
 
-	const int nS = 253; // this is integrated signal in our in-time region of interest
-	const int nB = 230; // this is integrated background in some off-time region
-	const double lowerBedge = -8.;
+	const int nS = 5000; // this is integrated signal in our in-time region of interest
+	const int nB = 4000; // this is integrated background in some off-time region
+	const double lowerBedge = -20;
 	const double upperBedge = 2;
 	
 	// Let's generate a signal ToF spectrum just drawing from a trianular PDF:
@@ -48,19 +48,20 @@ int main( int argc, char ** argv){
 		double weight = (16.-6.)/(upperBedge-lowerBedge);
 
 		// Fill some psuedo background level based on range we have available
-		double tof_bkg = (lowerBedge + myRand->Rndm()*(upperBedge-lowerBedge))*(dL/100.);
+		double tof_bkg = (lowerBedge + myRand->Rndm()*(upperBedge-lowerBedge))/(dL/100.);
 		ToF_bkgrd->Fill( tof_bkg  );
+		ToF_spb->Fill( tof_bkg );
 		// Now in real life, we take the event in our background level we just generated
 		// above, and re-drawn a random ToF based on the real range of interest, and
 		// calculate momentum, etc..
-		tof_bkg = (6. + myRand->Rndm()*(16.-6.))*dL/100.;
-		double mom = 0.938/sqrt(1./pow(dL/(30.*tof_bkg),2) - 1.);
+		tof_bkg = (6. + myRand->Rndm()*(16.-6.))/(dL/100.);
+		double mom = 0.938/sqrt(1./pow((30.*tof_bkg)/dL,2) - 1.);
 		mom_b->Fill( mom , weight);
 
 		// To fill our signal+background spectrum, we want to re-draw a random ToF
 		// in the nominal range so our background isn't exactly the same
-		tof_bkg = (6. + myRand->Rndm()*(16.-6.))*dL/100.;
-		mom = 0.938/sqrt(1./pow(dL/(30.*tof_bkg),2) - 1.);
+		tof_bkg = (6. + myRand->Rndm()*(16.-6.))/(dL/100.);
+		mom = 0.938/sqrt(1./pow((30.*tof_bkg)/dL,2) - 1.);
 		ToF_spb->Fill( tof_bkg , weight );
 		mom_spb->Fill( mom , weight);
 		mom_smb->Fill( mom );
@@ -68,8 +69,8 @@ int main( int argc, char ** argv){
 
 	for( int i = 0 ; i < nS ; i++ ){
 		double dL = 270. + myRand->Rndm()*(310.-280.);
-		double tof_sig = (tri->GetRandom())*dL/100.;
-		double mom = 0.938/sqrt(1./pow(dL/(30.*tof_sig),2) - 1.);
+		double tof_sig = (tri->GetRandom())/(dL/100.);
+		double mom = 0.938/sqrt(1./pow((30.*tof_sig)/dL,2) - 1.);
 		ToF_signal->Fill( tof_sig );
 		ToF_spb->Fill( tof_sig );
 		mom_spb->Fill( mom );

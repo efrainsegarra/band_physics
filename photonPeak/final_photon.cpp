@@ -18,6 +18,13 @@
 using namespace std;
 
 int slc[6][5] = {{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,5,5,0},{3,7,6,6,2}};
+void LoadGlobalShift();
+void LoadRunByRunShift();
+double FADC_GLOBSHIFT[600] = {0.};
+double FADC_RUNBYRUNSHIFT[10000] = {0.};
+char* getRunNumber( char* parse );
+
+
 int main(int argc, char ** argv){
 
 	gStyle->SetOptFit(1);
@@ -29,6 +36,10 @@ int main(int argc, char ** argv){
 	}
 
 	TFile * outFile = new TFile(argv[2],"RECREATE");
+
+	// Load timing shifts
+	LoadGlobalShift();
+	LoadRunByRunShift();
 
 	// Histograms for every single bar
 	
@@ -47,13 +58,14 @@ int main(int argc, char ** argv){
 			ToF_fits_it[sector][layer] = new TF1 *[7];
 			cSLC[sector][layer] = new TCanvas*[7];
 			for(int component = 0; component < slc[layer][sector]; component++){
-				ToF_spec[sector][layer][component] = new TH1D(Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),640,30,70);
+				ToF_spec[sector][layer][component] = new TH1D(Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),640,-15,25);
 			}
 		}
 	}
 	
 	// Loop over all the files that are given to me
 	for( int i = 3 ; i < argc ; i++ ){
+		int thisRun = atoi(getRunNumber(argv[i]));
 		TFile * inFile = new TFile(argv[i]);
 		if (!(inFile->GetListOfKeys()->Contains("skim"))){
 			cerr << "File has no entries\n";
@@ -92,7 +104,10 @@ int main(int argc, char ** argv){
 				double MeVee_cut = 0.;
 				if( sqrt(adcLcorr*adcRcorr) < MeVee_cut*2500. ) continue;
 
-				double tof = (meantimeFadc - STTime - dL/cAir);
+				int barID = sector*100 + layer*10 + component;
+				//if( barID == 315 || barID == 336 || barID == 352 || barID == 413 || barID == 445 ) continue;
+				if( barID == 314 ) continue;
+				double tof = (meantimeFadc - STTime - dL/cAir) - FADC_GLOBSHIFT[barID] - FADC_RUNBYRUNSHIFT[thisRun];
 
 				ToF_spec[sector-1][layer-1][component-1]->Fill(tof);
 		} // end loop over events
@@ -107,7 +122,7 @@ int main(int argc, char ** argv){
 	out_file.open(argv[1]);
 
 	TCanvas * c0 = new TCanvas("c0","c0",900,900);
-	c0 -> Print("results_single_photon_fadc.pdf(");
+	c0 -> Print("results_single_photon_fadc_2ndIter.pdf(");
 	for( int sector = 0; sector < 5; sector++){
 		for( int layer = 0; layer < 5; layer++){
 			for(int component = 0; component < slc[layer][sector]; component++){
@@ -125,13 +140,11 @@ int main(int argc, char ** argv){
 				}
 
 				// Get the min and max of the fit based on assuming 0.3ns resolution and the peak position
-				double sig_guess = 0.2;
+				double sig_guess = 0.3;
 				double max = ToF_spec[sector][layer][component]->GetMaximum();
-				max = max*0.75;
 				double max_pos = ToF_spec[sector][layer][component]->GetXaxis()->GetBinCenter( ToF_spec[sector][layer][component]->GetMaximumBin() );
-				max_pos = ToF_spec[sector][layer][component]->GetXaxis()->GetBinCenter( ToF_spec[sector][layer][component]->FindFirstBinAbove(max) );
 				
-				double min_fit = max_pos - 10;
+				double min_fit = max_pos - 5;
 				double max_fit = max_pos + 2.*sig_guess;
 				ToF_fits[sector][layer][component] = new TF1(Form("ToF_fits_%i_%i_%i",sector,layer,component),"pol0+gaus(1)",min_fit,max_fit);
 				
@@ -184,16 +197,77 @@ int main(int argc, char ** argv){
 				
 				cSLC[sector][layer][component]->Update();
 				cSLC[sector][layer][component]->Modified();
-				cSLC[sector][layer][component] -> Print("results_single_photon_fadc.pdf");
+				cSLC[sector][layer][component] -> Print("results_single_photon_fadc_2ndIter.pdf");
 				//cSLC[sector][layer][component]->Write();
 			}
 		}
 	}
-	c0 -> Print("results_single_photon_fadc.pdf)");
+	c0 -> Print("results_single_photon_fadc_2ndIter.pdf)");
 
 	out_file.close();
 	outFile->Close();
 
 
 	return 0;
+}
+
+void LoadGlobalShift(){
+	ifstream f;
+	int sector, layer, component, barId;
+	double pol0, height, mean, sig, temp;
+
+	f.open("global_offset_fadc-10032019.txt");
+	while(!f.eof()){
+		f >> sector;
+		f >> layer;
+		f >> component;
+		barId = 100*sector + 10*layer + component;
+		f >> pol0;
+		f >> height;
+		f >> mean;
+		f >> sig;
+		FADC_GLOBSHIFT[barId] = mean;
+		f >> temp;
+		f >> temp;
+	}
+	f.close();
+}
+
+char* getRunNumber( char* parse ){
+	char * parse_copy = (char*) malloc( strlen(parse)+1 );
+	char * parsed;
+
+	strcpy( parse_copy, parse );
+	char * loop = strtok( parse_copy, ".");
+	while(loop){
+		char* equals_sign = strchr(loop, '_');
+		if (equals_sign){
+			*equals_sign = 0;
+			equals_sign++;
+			parsed = (char*)malloc(strlen(equals_sign) + 1);
+			strcpy(parsed, equals_sign);
+		}
+		loop = strtok(NULL, ".");
+	}
+	free(parse_copy);
+	return parsed;
+}
+
+void LoadRunByRunShift(){
+	ifstream f;
+	int runnum;
+	double pol0, height, mean, sig, temp;
+
+	f.open("runByrun_offset_fadc-10032019.txt");
+	while(!f.eof()){
+		f >> runnum;
+		f >> pol0;
+		f >> height;
+		f >> mean;
+		f >> sig;
+		FADC_RUNBYRUNSHIFT[runnum] = mean;
+		f >> temp;
+		f >> temp;
+	}
+	f.close();
 }

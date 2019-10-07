@@ -31,15 +31,16 @@ int main(int argc, char ** argv){
 
 	// ToF histograms:
 	cout << "Init histograms\n";
+	TH1D * ToF_overall = new TH1D("ToF_overall","ToF_overall",80,0,40);
+	TH1D * ToF_overall_pre = new TH1D("ToF_overall_pre","ToF_overall_pre",80,0,40);
 	TH1D ** ToF_full = new TH1D*[15];
 	TH1D *** ToF_dis = new TH1D**[15];
 	for( int i = 0 ; i < 15 ; i++){
 		ToF_full[i] = new TH1D(Form("ToF_full_%iMeVee",(i+1)),Form("ToF_full_%iMeVee",(i+1)),320,-40,120);
-		//ToF_dis[i] = new TH1D*[5];
-		//for( int j = 0; j < 6; j++){
-		//	double xLo = 0.1+j*0.1;
-		//	ToF_dis[i][j] = new TH1D(Form("ToF_full_%iMeVee_%fxB",(i+2),xLo),Form("ToF_full_%iMeVee_%fxB",(i+2),xLo),80,0,40);	
-		//}
+		ToF_dis[i] = new TH1D*[6];
+		for( int j = 0; j < 6; j++){
+			ToF_dis[i][j] = new TH1D(Form("ToF_full_%iMeVee_%ixB",(i+1),j),Form("ToF_full_%iMeVee_%ixB",(i+1),j),80,0,40);	
+		}
 	}
 	cout << "...done!\n";
 
@@ -91,24 +92,28 @@ int main(int argc, char ** argv){
 			if( nHits != 1) continue;
 			if( nADC != 2) continue;
 			if( nTDC != 2) continue;
-			if( sector == 3 || sector == 4 ) continue;
 			
 
 			int id = sector*100 + layer*10 + component;
 			double tof = ( meantimeFadc - STTime - shifts[id] ) / (dL/100.) ;
 			double adc = sqrt(adcLcorr*adcRcorr)/2500.;
 
+			ToF_overall_pre->Fill( (meantimeFadc - STTime)/(dL/100.) );
+			ToF_overall->Fill( tof );
+
+			if( sector == 3 || sector == 4 ) continue;
+
 			if( Q2 > 2 && sqrt(W2) > 2.2 ){
 				for( int MeVeeCut = 1; MeVeeCut < 16; MeVeeCut++ ){
 					if( adc > MeVeeCut ){
 						ToF_full[MeVeeCut-1] -> Fill( tof );
-						//for( int j = 0; j < 6; j+=1 ){ // xB loop cut
-						//	double xLo = 0.1+0.1*j;
-						//	double xHi = 0.1+0.1*j+0.1;
-						//	if( xB > xLo && xB < xHi ){
-						//		ToF_dis[MeVeeCut-1][j] -> Fill( tof );
-						//	} // end xB if
-						//} // end xB loop
+						for( int j = 0; j < 6; j+=1 ){ // xB loop cut
+							double xLo = 0.1+0.1*j;
+							double xHi = 0.1+0.1*j+0.1;
+							if( xB > xLo && xB < xHi ){
+								ToF_dis[MeVeeCut-1][j] -> Fill( tof );
+							} // end xB if
+						} // end xB loop
 					} // end MeV if
 				} // end MeV loop
 			} // end Q2/W if
@@ -124,6 +129,9 @@ int main(int argc, char ** argv){
 	ofstream outtext;
 	outtext.open("/home/segarrae/software/band/analysis/signalBackground/spb.txt");
 	outFile->cd();
+
+	ToF_overall_pre->Write();
+	ToF_overall->Write();
 	for( int i = 0 ; i < 15 ; i++){
 		ToF_full[i]->Write();
 
@@ -137,9 +145,9 @@ int main(int argc, char ** argv){
 		
 		outtext << (i+1) << " " << spb << " " << b << "\n";
 
-	//	for( int j = 0; j < 6; j++){
-	//		ToF_dis[i][j]->Write();
-	//	}
+		for( int j = 0; j < 6; j+=1 ){ 
+			ToF_dis[i][j]->Write();
+		}
 	}
 	outtext.close();
 	outFile->Close();

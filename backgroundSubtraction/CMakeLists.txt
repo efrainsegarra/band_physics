@@ -8,3 +8,6 @@ target_link_libraries(basic_subtraction ${ROOT_LIBRARIES} )
 
 add_executable(testSubtraction testSubtraction.cpp )
 target_link_libraries(testSubtraction ${ROOT_LIBRARIES} )
+
+add_executable(create_plots create_plots.cpp )
+target_link_libraries(create_plots ${ROOT_LIBRARIES} )

@@ -27,6 +27,7 @@ using namespace std;
 int slc[6][5] = {{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,5,5,0},{3,7,6,6,2}};
 void LoadGlobalShift();
 double FADC_GLOBSHIFT[600] = {0.};
+double TDC_GLOBSHIFT[600] = {0.};
 char* getRunNumber( char* parse );
 
 int main(int argc, char ** argv){
@@ -74,7 +75,8 @@ int main(int argc, char ** argv){
 		inTree->SetBranchAddress("nHits",			&nHits		);
 		inTree->SetBranchAddress("adcLcorr",			&adcLcorr	);
 		inTree->SetBranchAddress("adcRcorr",			&adcRcorr	);
-		inTree->SetBranchAddress("meantimeFadc",		&meantimeFadc	);
+		//inTree->SetBranchAddress("meantimeFadc",		&meantimeFadc	);
+		inTree->SetBranchAddress("meantimeTdc",		&meantimeFadc	);
 		inTree->SetBranchAddress("STTime",			&STTime		);
 		inTree->SetBranchAddress("dL",				&dL		);
 		inTree->SetBranchAddress("sector",			&sector		);
@@ -98,8 +100,9 @@ int main(int argc, char ** argv){
 
 			int barID = sector*100 + layer*10 + component;
 			//if( barID == 315 || barID == 336 || barID == 352 || barID == 413 || barID == 445 ) continue;
-			if( barID == 314 ) continue;
-			double tof = (meantimeFadc - STTime - dL/cAir) - FADC_GLOBSHIFT[barID];
+			//if( barID == 314 ) continue;
+			double tof = (meantimeFadc - STTime - dL/cAir) - TDC_GLOBSHIFT[barID];
+			//double tof = (meantimeFadc - STTime - dL/cAir) - FADC_GLOBSHIFT[barID];
 			// correct run-by-run shift:
 			//tof = tof - RUN_SHIFT[run];
 			// add back in path-length for actual tof:
@@ -211,7 +214,7 @@ void LoadGlobalShift(){
 	int sector, layer, component, barId;
 	double pol0, height, mean, sig, temp;
 
-	f.open("global_offset_fadc-10032019.txt");
+	f.open("global_offset_fadc-10082019.txt");
 	while(!f.eof()){
 		f >> sector;
 		f >> layer;
@@ -222,6 +225,21 @@ void LoadGlobalShift(){
 		f >> mean;
 		f >> sig;
 		FADC_GLOBSHIFT[barId] = mean;
+		f >> temp;
+		f >> temp;
+	}
+	f.close();
+	f.open("global_offset_tdc_1stIter-04132020.txt");
+	while(!f.eof()){
+		f >> sector;
+		f >> layer;
+		f >> component;
+		barId = 100*sector + 10*layer + component;
+		f >> pol0;
+		f >> height;
+		f >> mean;
+		f >> sig;
+		TDC_GLOBSHIFT[barId] = mean;
 		f >> temp;
 		f >> temp;
 	}

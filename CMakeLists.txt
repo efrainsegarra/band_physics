@@ -11,6 +11,7 @@ include_directories(${INCLUDES})
 project (analysis)
 
 add_subdirectory(backgroundSubtraction)
+add_subdirectory(eventMixing)
 add_subdirectory(acceptance)
 add_subdirectory(signalBackground)
 add_subdirectory(photonPeak)

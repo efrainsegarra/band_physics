@@ -18,6 +18,12 @@
 using namespace std;
 
 int slc[6][5] = {{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,5,5,0},{3,7,6,6,2}};
+void ReadPreviousShifts();
+double PREV_FADC_POL0[600];
+double PREV_FADC_HEIGHT[600];
+double PREV_FADC_GLOBSHIFT[600];
+double PREV_FADC_SIGMA[600];
+
 int main(int argc, char ** argv){
 
 	gStyle->SetOptFit(1);
@@ -47,7 +53,8 @@ int main(int argc, char ** argv){
 			ToF_fits_it[sector][layer] = new TF1 *[7];
 			cSLC[sector][layer] = new TCanvas*[7];
 			for(int component = 0; component < slc[layer][sector]; component++){
-				ToF_spec[sector][layer][component] = new TH1D(Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),640,30,70);
+				//ToF_spec[sector][layer][component] = new TH1D(Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),640,30,70);
+				ToF_spec[sector][layer][component] = new TH1D(Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),Form("ToF_spec_%i_%i_%i",(sector+1),(layer+1),(component+1)),640,250,290);
 			}
 		}
 	}
@@ -70,7 +77,8 @@ int main(int argc, char ** argv){
 		inTree->SetBranchAddress("nHits",			&nHits		);
 		inTree->SetBranchAddress("adcLcorr",			&adcLcorr	);
 		inTree->SetBranchAddress("adcRcorr",			&adcRcorr	);
-		inTree->SetBranchAddress("meantimeFadc",		&meantimeFadc	);
+		inTree->SetBranchAddress("meantimeTdc",		&meantimeFadc	);
+		//inTree->SetBranchAddress("meantimeFadc",		&meantimeFadc	);
 		inTree->SetBranchAddress("STTime",			&STTime		);
 		inTree->SetBranchAddress("dL",				&dL		);
 		inTree->SetBranchAddress("sector",			&sector		);
@@ -105,9 +113,10 @@ int main(int argc, char ** argv){
 		
 	ofstream out_file;
 	out_file.open(argv[1]);
+	ReadPreviousShifts();
 
 	TCanvas * c0 = new TCanvas("c0","c0",900,900);
-	c0 -> Print("results_single_photon_fadc.pdf(");
+	c0 -> Print("results_single_photon_tdc.pdf(");
 	for( int sector = 0; sector < 5; sector++){
 		for( int layer = 0; layer < 5; layer++){
 			for(int component = 0; component < slc[layer][sector]; component++){
@@ -125,15 +134,13 @@ int main(int argc, char ** argv){
 				}
 
 				// Get the min and max of the fit based on assuming 0.3ns resolution and the peak position
-				double sig_guess = 0.2;
+				double sig_guess = 0.3;
+				
 				double max = ToF_spec[sector][layer][component]->GetMaximum();
-				max = max*0.75;
+				if( sector == 3 || sector == 4) max = max*0.75;
+				else{ max = max*0.5; }
 				double max_pos = ToF_spec[sector][layer][component]->GetXaxis()->GetBinCenter( ToF_spec[sector][layer][component]->GetMaximumBin() );
 				max_pos = ToF_spec[sector][layer][component]->GetXaxis()->GetBinCenter( ToF_spec[sector][layer][component]->FindFirstBinAbove(max) );
-				
-				double min_fit = max_pos - 10;
-				double max_fit = max_pos + 2.*sig_guess;
-				ToF_fits[sector][layer][component] = new TF1(Form("ToF_fits_%i_%i_%i",sector,layer,component),"pol0+gaus(1)",min_fit,max_fit);
 				
 				// Set parameters of the fit before fitting:
 				double background_lvl = 0.;
@@ -141,6 +148,17 @@ int main(int argc, char ** argv){
 					background_lvl += ToF_spec[sector][layer][component]->GetBinContent(i);
 				}
 				background_lvl /= 24;
+
+				// Just use previous definitions now
+				int barID = (sector+1)*100 + (layer+1)*10 + (component+1);
+				//background_lvl = PREV_FADC_POL0[barID];
+				//max = PREV_FADC_HEIGHT[barID];
+				//max_pos = PREV_FADC_GLOBSHIFT[barID];
+				//sig_guess = PREV_FADC_SIGMA[barID];
+
+				double min_fit = max_pos - 10;
+				double max_fit = max_pos + 2.*sig_guess;
+				ToF_fits[sector][layer][component] = new TF1(Form("ToF_fits_%i_%i_%i",sector,layer,component),"pol0+gaus(1)",min_fit,max_fit);
 					// background level:
 				ToF_fits[sector][layer][component]->SetParameter(0,background_lvl);
 					// constant of gaus:
@@ -184,16 +202,42 @@ int main(int argc, char ** argv){
 				
 				cSLC[sector][layer][component]->Update();
 				cSLC[sector][layer][component]->Modified();
-				cSLC[sector][layer][component] -> Print("results_single_photon_fadc.pdf");
+				cSLC[sector][layer][component] -> Print("results_single_photon_tdc.pdf");
 				//cSLC[sector][layer][component]->Write();
 			}
 		}
 	}
-	c0 -> Print("results_single_photon_fadc.pdf)");
+	c0 -> Print("results_single_photon_tdc.pdf)");
 
 	out_file.close();
 	outFile->Close();
 
 
 	return 0;
+}
+
+void ReadPreviousShifts(){
+	ifstream f;
+	int sector, layer, component, barId;
+	double pol0, height, mean, sig, temp;
+
+	f.open("global_offset_fadc-10032019.txt");
+	while(!f.eof()){
+		f >> sector;
+		f >> layer;
+		f >> component;
+		barId = 100*sector + 10*layer + component;
+		f >> pol0;
+		f >> height;
+		f >> mean;
+		f >> sig;
+		f >> temp;
+		f >> temp;
+		PREV_FADC_POL0[barId] = pol0;
+		PREV_FADC_HEIGHT[barId] = height;
+		PREV_FADC_GLOBSHIFT[barId] = mean;
+		PREV_FADC_SIGMA[barId] = sig;
+		//cout << barId << " " <<  PREV_FADC_POL0[barId] << " " << PREV_FADC_HEIGHT[barId] << " " << PREV_FADC_GLOBSHIFT[barId] << " " << PREV_FADC_SIGMA[barId] << "\n";
+	}
+	f.close();
 }

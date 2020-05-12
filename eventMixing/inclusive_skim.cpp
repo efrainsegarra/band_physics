@@ -16,6 +16,7 @@
 #include "TStyle.h"
 #include "TRandom3.h"
 #include "../../deuteron_dis/include/constants.h"
+#include "ElectronFiducial.h"
 
 using namespace std;
 
@@ -83,6 +84,7 @@ int main(int argc, char ** argv){
 	// Define 4D binned ToF plots and bin edges and kin cuts
 	double const min_Q2 		= 2;
 	double const max_Q2 		= 10;
+	ElectronFiducial* myFiducial = new ElectronFiducial("../../eFiducial/upper_momentum_fit.dat", "../../eFiducial/lower_momentum_fit.dat");
  
 
 	// Loop over all the files that are given to me
@@ -165,6 +167,13 @@ int main(int argc, char ** argv){
 			chi2pid_e 		 = 0;
 			inTree->GetEntry(ev);
 
+			if( vrt_z_e < -10 || vrt_z_e > 5 ) continue;
+			if( EoP < 0.15 || EoP > 0.3 ) continue;
+			if( p_e < 2 ) continue;
+			double acc = myFiducial->GetElectronAcceptance(	theta_e*180./M_PI, 
+									phi_e*180./M_PI, 
+									p_e );
+			//if( acc != 1 ) continue;
 			// Recalculate quantities based on fixed beam energy
 			TVector3 beamVec(0,0,fixed_Ebeam);
 			TVector3 eVec;	eVec.SetMagThetaPhi(p_e,theta_e,phi_e);

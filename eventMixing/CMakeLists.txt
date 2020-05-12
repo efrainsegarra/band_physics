@@ -1,9 +1,9 @@
 
 cmake_minimum_required (VERSION 2.6)
-set(INCLUDES ${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include )
+set(INCLUDES ${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/eFiducial )
 include_directories(${INCLUDES})
 
-add_executable(inclusive_skim inclusive_skim.cpp )
+add_executable(inclusive_skim inclusive_skim.cpp ${CMAKE_SOURCE_DIR}/eFiducial/ElectronFiducial.cpp )
 target_link_libraries(inclusive_skim ${ROOT_LIBRARIES} )
 
 add_executable(neutron_skim neutron_skim.cpp )

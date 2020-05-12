@@ -15,6 +15,7 @@
 #include "TStyle.h"
 #include "TRandom3.h"
 #include "../../deuteron_dis/include/constants.h"
+#include "ElectronFiducial.h"
 
 using namespace std;
 int slc[6][5] = {{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,6,6,2},{3,7,5,5,0},{3,7,6,6,2}};
@@ -148,6 +149,7 @@ int main(int argc, char ** argv){
 	LoadLROffsets();
 	LoadPaddleOffsets();
 	LoadLayerOffsets();
+	ElectronFiducial* myFiducial = new ElectronFiducial("../../eFiducial/upper_momentum_fit.dat", "../../eFiducial/lower_momentum_fit.dat");
 	TRandom3 * myRand = new TRandom3(0);
 		
 	// Define histograms to be used:
@@ -400,6 +402,17 @@ int main(int argc, char ** argv){
 			byHand_dL		 = 0; 
 
 			inTree->GetEntry(ev);
+			
+			// Quality Electron cuts v0
+			if( vrt_z_e < -10 || vrt_z_e > 5 ) continue;
+			if( EoP < 0.15 || EoP > 0.3 ) continue;
+			if( p_e < 2 ) continue;
+			double acc = myFiducial->GetElectronAcceptance(	theta_e*180./M_PI, 
+									phi_e*180./M_PI, 
+									p_e );
+			if( acc != 1 ) continue;
+
+
 			// Tagged skim -- look for 1 hit in BAND with hi energy dep
 			if( nHits == 1 && meantimeTdc!=0 && sqrt(adcLcorr*adcRcorr) > cut_lo_MeVee*2300){
 	

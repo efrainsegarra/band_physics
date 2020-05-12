@@ -1,9 +1,9 @@
 
 cmake_minimum_required (VERSION 2.6)
-set(INCLUDES ${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include )
+set(INCLUDES ${ROOT_INCLUDE_DIR} ${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/eFiducial )
 include_directories(${INCLUDES})
 
-add_executable(basic_subtraction basic_subtraction.cpp )
+add_executable(basic_subtraction basic_subtraction.cpp ${CMAKE_SOURCE_DIR}/eFiducial/ElectronFiducial.cpp )
 target_link_libraries(basic_subtraction ${ROOT_LIBRARIES} )
 
 add_executable(testSubtraction testSubtraction.cpp )

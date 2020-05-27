@@ -12,8 +12,9 @@
 
 using namespace std;
 
-void FillHists( TTree* inTree , double weight , TH1D* hist );
-void FillHistsSim( TTree* inTree , double weight , TH1D* hist );
+void FillHists( TTree* inTree , double weight , TH1D* h_pn, TH1D** hs_xp , TH1D * h_ashi, TH1D* h_aslo , TH1D* h_xpfull );
+void FillHistsSim( TTree* inTree , double weight , TH1D* h_pn, TH1D** hs_xp , TH1D * h_ashi, TH1D* h_aslo , TH1D* h_xpfull );
+void Pretty1D( TH1D * hist , int color=4 , int linewidth=2 , double scale=1 );
 
 int main(int argc, char ** argv){
 	if (argc != 5){
@@ -36,16 +37,65 @@ int main(int argc, char ** argv){
 	TH1D * bac_pn = new TH1D("bac_pn","",15,0.2,0.5);
 	TH1D * sim_pn = new TH1D("sim_pn","",15,0.2,0.5);
 
-	FillHists( inTree_spb , 1.0 		, spb_pn );
-	FillHists( inTree_bac , bac_weight	, bac_pn );
-	FillHistsSim( inTree_sim , 1.0		, sim_pn );
-	sim_pn->Scale(spb_pn->Integral() / sim_pn->Integral() );
+
+	TH1D * spb_xpfull = new TH1D("spb_xpfull","",50,0,1);
+	TH1D * bac_xpfull = new TH1D("bac_xpfull","",50,0,1);
+	TH1D * sim_xpfull = new TH1D("sim_xpfull","",50,0,1);
+	TH1D ** spb_xpas = new TH1D*[5];
+	TH1D ** bac_xpas = new TH1D*[5];
+	TH1D ** sim_xpas = new TH1D*[5];
+	for( int i = 0; i < 5 ; i++){
+		spb_xpas[i] = new TH1D(Form("spb_xpas_%i",i),"",50,0,1);
+		bac_xpas[i] = new TH1D(Form("bac_xpas_%i",i),"",50,0,1);
+		sim_xpas[i] = new TH1D(Form("sim_xpas_%i",i),"",50,0,1);
+	}
+	TH1D * spb_asHi = new TH1D("spb_asHi","",5,1.2,1.7);
+	TH1D * spb_asLo = new TH1D("spb_asLo","",5,1.2,1.7);
+	TH1D * bac_asHi = new TH1D("bac_asHi","",5,1.2,1.7);
+	TH1D * bac_asLo = new TH1D("bac_asLo","",5,1.2,1.7);
+	TH1D * sim_asHi = new TH1D("sim_asHi","",5,1.2,1.7);
+	TH1D * sim_asLo = new TH1D("sim_asLo","",5,1.2,1.7);
+
+	FillHists( inTree_spb , 1.0 		, spb_pn , spb_xpas , spb_asHi , spb_asLo , spb_xpfull);
+	FillHists( inTree_bac , bac_weight	, bac_pn , bac_xpas , bac_asHi , bac_asLo , bac_xpfull);
+	FillHistsSim( inTree_sim , 1.0		, sim_pn , sim_xpas , sim_asHi , sim_asLo , sim_xpfull);
 
 	TFile * outFile = new TFile(argv[4],"RECREATE");
 	outFile->cd();
 	spb_pn->Write();
 	bac_pn->Write();
 	sim_pn->Write();
+	
+	Pretty1D( spb_xpfull );
+	Pretty1D( bac_xpfull , 2 );
+	Pretty1D( sim_xpfull , 3 );
+	spb_xpfull->Write();
+	bac_xpfull->Write();
+	sim_xpfull->Write();
+
+
+	for( int i = 0; i < 5 ; i++){
+		Pretty1D( spb_xpas[i] );
+		Pretty1D( bac_xpas[i] , 2 );
+		Pretty1D( sim_xpas[i] , 3 );
+
+		spb_xpas[i]->Write();
+		bac_xpas[i]->Write();
+		sim_xpas[i]->Write();
+	}
+	Pretty1D(spb_asHi);
+	Pretty1D(bac_asHi, 2 );
+	Pretty1D(sim_asHi, 3 );
+	Pretty1D(spb_asLo);
+	Pretty1D(bac_asLo, 2 );
+	Pretty1D(sim_asLo, 3 );
+	
+	spb_asHi->Write();
+	spb_asLo->Write();
+	bac_asHi->Write();
+	bac_asLo->Write();
+	sim_asHi->Write();
+	sim_asLo->Write();
 	outFile->Close();
 	
 
@@ -56,7 +106,15 @@ int main(int argc, char ** argv){
 	return 0;
 }
 
-void FillHists( TTree* inTree , double weight , TH1D* hist ){
+void Pretty1D( TH1D * hist , int color , int linewidth , double scale ){
+	hist->SetLineColor(color);
+	hist->SetLineWidth(linewidth);
+	hist->SetStats(0);
+	hist->Scale(scale);
+	return;
+}
+
+void FillHists( TTree* inTree , double weight , TH1D* h_pn, TH1D** hs_xp , TH1D * h_ashi, TH1D* h_aslo , TH1D* h_xpfull ){
 	double p_e       		 = 0;
 	double theta_e   		 = 0;
 	double phi_e     		 = 0;
@@ -129,15 +187,29 @@ void FillHists( TTree* inTree , double weight , TH1D* hist ){
 
 		inTree->GetEntry(ev);
 
-		if( Wp > 2 && fabs(Xp-0.3)<0.05) {
-			hist->Fill( p_n , weight );
+		if( Wp > 1.8 ) {
+			int As_bin = (int) ((As-1.2)/0.1);
+			if( As_bin < 0 || As_bin > 4 ) continue;
+			hs_xp[As_bin]->Fill( Xp , weight );
+
+			h_xpfull->Fill( Xp , weight );
+
+			if( Xp > 0.6 && Xp < 1 ){
+				h_ashi->Fill( As , weight );
+			}
+
+
+			if( fabs(Xp-0.3)<0.05) {
+				h_pn->Fill( p_n , weight );
+				h_aslo->Fill( As , weight );
+			}
 		}
 
 	}
 
 	return;
 }
-void FillHistsSim( TTree* inTree , double weight , TH1D* hist ){
+void FillHistsSim( TTree* inTree , double weight , TH1D* h_pn, TH1D** hs_xp , TH1D * h_ashi, TH1D* h_aslo , TH1D* h_xpfull ){
 	double p_e       		 = 0;
 	double theta_e   		 = 0;
 	double phi_e     		 = 0;
@@ -244,8 +316,23 @@ void FillHistsSim( TTree* inTree , double weight , TH1D* hist ){
 		Xp = Q2/(2.*( nu*(mD-E_n) + p_n*q*CosTheta_nq));
 		As = (E_n - p_n*CosTheta_nq)/mN;
 
-		if( Wp > 2 && fabs(Xp-0.3)<0.05 && Q2 < 10 && Q2 > 2 && sqrt(W2)>2 && CosTheta_nq < -0.8 ) {
-			hist->Fill( p_n , weight );
+
+		if( Wp > 1.8 && Q2 < 10 && Q2 > 2 && sqrt(W2)>2 && CosTheta_nq < -0.8 ) {
+			int As_bin = (int) ((As-1.2)/0.1);
+			if( As_bin < 0 || As_bin > 4 ) continue;
+			hs_xp[As_bin]->Fill( Xp , weight );
+
+			h_xpfull->Fill( Xp , weight );
+
+			if( Xp > 0.6 && Xp < 1 ){
+				h_ashi->Fill( As , weight );
+			}
+
+
+			if( fabs(Xp-0.3)<0.05) {
+				h_pn->Fill( p_n , weight );
+				h_aslo->Fill( As , weight );
+			}
 		}
 
 	}
